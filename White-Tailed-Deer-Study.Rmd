@@ -527,7 +527,7 @@ As the Arkansas white-tailed deer population has started to increase in 2023, th
 ## Factors to Avoid in Worry of Deer-Car Collisions:
 <br>
 <br>
-* Grasslands/Prairies, Savannas, and Crop/Farmland Environments
+* Grasslands/Prairies, Savannas, Upland Forests, and Crop/Farmland Environments
 <br>
 * 5PM-11PM (most notably 5PM)
 <br>
@@ -570,4 +570,5 @@ https://www.mybib.com/b/ROa5po
 ---
 nocite: '@*'
 ...
+
 
