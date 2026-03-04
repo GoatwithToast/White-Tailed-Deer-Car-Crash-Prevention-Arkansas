@@ -3,4 +3,6 @@ This study intends to spread awareness on the factors that persuade deer activit
 All data is pulled from the White-tailed Deer Monitoring for the Heartland Inventory and Monitoring Network: 2005-2023 - Data Package:
 https://catalog.data.gov/dataset/white-tailed-deer-monitoring-for-the-heartland-inventory-and-monitoring-network-2005-2023--2625a
 
+Since the data is Arkansas data, it should be noted that this study applies to only Arkansas
+
 https://www.mybib.com/b/ROa5po
