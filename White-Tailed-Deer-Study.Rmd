@@ -1,0 +1,573 @@
+---
+title: "Arkansas White-Tailed Deer Car Collision Prevention Study"
+author: "Felix Waller"
+date: "2025-12-7"
+output: html_document
+bibliography: citations.bib
+---
+
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+# Overview
+<br>
+<br>
+This document aims to study the white-tailed deer population in Arkansas, based on the white-tailed deer monitoring dataset from the National Park Service/ Department of the Interior (National Park Service & Department of the Interior, 2025). The data studied will be utilized to assist the Arkansas population in avoiding deer/vehicle collisions.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+
+## Important R Findings:
+<br>
+<br>
+* %>% is an operator in R that forwards the output of one function to the next (Qaxt, 2022). It helps with readability.
+<br>
+<br>
+* POSIXct is a variable/object in R that is used specifically for dates and times (Bobbitt, 2024) (Spinu et al., 2025).
+<br>
+<br>
+* lubridate is a library used to work with POSIXct objects (Bobbitt, 2024) (Spinu et al., 2025).
+<br>
+<br>
+* drop_na and na.rm remove na values so they do not tamper with the graph (Sanderson, 2024) (Chugh, 2024). na_if sets a value to NA if it meets the specified conditions (Wickham et al., 2024).
+<br>
+<br>
+* mutate() is used to add and/or change dataset values (What Is the Mutate() Function in R?, n.d.) (Maya, 2023)(Wickham et al., 2024b).
+<br>
+<br>
+* .fun = sum is used to specify ordering relative to the summation of values (Indescribled, 2021) (emilmalta, 2021). fun = sum (not inside the fct_reorder function and does not have a period at the beginning) is used to actually sum the values for display (Bobbitt, 2022).
+<br>
+<br>
+* summarize() is used to combine multiple values from a dataset into one value, through summation, mean, median, etc (Bobbitt, 2022) (Wickham et al., 2024d).
+<br>
+<br>
+* breaks() breaks up axis labels into specified sections so there are not too many labels on one axis. cut() divides a variable into ranges/intervals. (Bobbitt, 2021b) (Marsja, 2023)
+<br>
+<br>
+* group_by() groups up relative values for comparison to other values (Wickham et al., 2024c) (Wickham et al., 2024d) .
+<br>
+<br>
+* br (enveloped in <>) is a function in HTML that creates a line of spacing. Since the output of this RMD is HTML, br works.(Clark, 2014)
+<br>
+<br>
+* case_when() is part of the dplyr package. case_when() allows new variables to be made based on characteristics of existing variables.(Bobbitt, 2021a)
+<br>
+<br>
+* paste() is used to combine multiple values/variables into one string (Prajwal CN, 2022)
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r}
+library(tidyverse)
+library(ggthemes)
+library(lubridate)
+monitoring <- read.csv("./HTLN_WhiteTailedDeer_Monitoring.csv") #monitoring seems to be the most informative dataset
+
+
+cloud_median <- function(x) { #function to calculate the median of beginning and ending cloud cover ranges
+  case_when(
+    x == "None present"~ 0,
+    x == "Trace - 1"   ~ 1,
+    x == " 1 - 5"      ~ 2.5,
+    x == " 5 - 25"     ~ 15,
+    x == " 25 - 50"    ~ 37.5,
+    x == " 50 - 75"    ~ 62.5,
+    x == " 75 - 95"    ~ 85,
+    x == " 95 - 100"   ~ 97.5,
+
+  )
+}
+
+monitoring <- monitoring %>%
+  mutate(
+    #Here I am combining the GPSDate and GPSTime objects together to create a POSIXct (date-time) object. This makes these variables much easier to graph
+    GPSTimeCombined = as.POSIXct(paste(GPSDate, GPSTime), format = "%Y-%m-%d %H:%M:%S"),
+    BeginningTemperatureInCelsius = na_if(BeginningTemperatureInCelsius, -9999), #-9999 is often used as a placeholder in scientific datasets, but will skew graphing into extreme values. The na_if() function sets a specified value in a column to NA.
+    EndingTemperatureInCelsius = na_if(EndingTemperatureInCelsius, -9999),
+    AvgTemperatureInCelsius = (BeginningTemperatureInCelsius + EndingTemperatureInCelsius) / 2,
+    
+    BeginningHumidityInPercent = na_if(BeginningHumidityInPercent, -9999),
+    EndingHumidityInPercent= na_if(EndingHumidityInPercent,-9999),
+    AvgHumidityInPercent = (BeginningHumidityInPercent + EndingHumidityInPercent)/2,
+    
+    WeatherCondition = case_when( 
+    BeginningPrecipitation == EndingPrecipitation ~ BeginningPrecipitation, #if beginning and end precipitation values are the same, make no change.
+    TRUE ~ paste(BeginningPrecipitation, EndingPrecipitation, sep = " to ") #else, add the two values as a range (ex. No Rain to Snow)
+  ), 
+  
+    StartCloud = cloud_median(BeginningCloudCoverInPercent),
+    EndCloud = cloud_median(EndingCloudCoverInPercent),
+    AvgCloudCover = (StartCloud + EndCloud) / 2
+  
+  )
+
+monitoring_cleaned <- monitoring %>%
+  drop_na(AvgTemperatureInCelsius) %>%
+  drop_na(AvgHumidityInPercent)
+  #drop_na removes rows where dates,times, and humidities
+# Write the modified dataframe to a new CSV file
+write.csv(monitoring_cleaned, "HTLN_WhiteTailedDeer_Monitoring_Updated.csv", row.names = FALSE)
+  
+
+head(monitoring)
+```
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+
+```{r}
+p <- ggplot(data=monitoring, mapping=aes(x=DeerTotal, y = VegetationType))
+            p+ geom_boxplot()+
+  labs(
+    title = "Deer Count Distibution by Vegetation Type",
+    x = "Deer Total (per sighting)",
+    y = "Vegetation Type"
+  )
+```
+<br>
+Here we can see areas with the Crop vegetation type are the most unpredictable when it comes to the total
+deer spotted per sighting, with the lower and upper quartile, as well as the whiskers, being longer than any other vegetation type. Grassland/Prairies and Upland Forests are also unpredictable when it comes to their total deer, with the range of deer sighted per day being quite big, indicated by the long boxplots. The savanna vegetation type has the greatest average total deer per sighting, with the crop vegetation type being second.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(
+    x = fct_reorder(VegetationType, DeerTotal, .fun = sum, .desc = TRUE), #.fun specifies that Vegetation type will be reordered based on the sum of DeerTotal, and .desc = TRUE specifies that the specific order will be descending
+    y = DeerTotal
+  )) +
+  geom_col( stat = "summary", fun = sum, fill = "green", color = "black") + # finds the sum of deertotal for each VegetationType
+  #stat = "summary" has to be called to access fun = sum
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + #angles the text on the x-axis so it does not overlap
+  scale_y_continuous(labels = scales::number_format(accuracy = 1))+ #actually shows the numbers on the y-axis instead of abbreviating them
+
+  labs(
+    title = "Total Deer Count Relative to Each Vegetation Type",
+    x = "Vegetation Type",
+    y = "Deer Total (summation of all sightings)"
+  )
+p
+```
+<br>
+This is the summation of the total deer sightings for each area of vegetation. Here we can see that Grassland/Prairie has the most deer sightings, which might indicate deer are more common there.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+
+
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(x = as.character(Year), y = DeerTotal))
+
+p +
+ 
+  geom_col(stat = "summary", fun = sum, fun.args = list(na.rm = TRUE)) + #na.rm is used to prevent data that is not available from tampering with the graph
+  
+  geom_line(stat = "summary", fun = sum, aes(group = 1) , color = "red", linewidth = 1, fun.args = list(na.rm = TRUE))+ #aes(group = 1) specifies one continous line for all years
+  
+  labs(
+    title = "Deer Total Per Year",
+    x = "Year",
+    y = "Deer Total (summation of all sightings)"
+  )
+```
+<br>
+From this chart, we can see that the deer total seen by the Department of the Interior had a sharp decrease in 2022. This is most likely due to the "die-down" of the COVID-19 pandemic, so more people felt safe to go outside and hunt. In 2023, you can see there is a steady increase in the observed deer population. We went from around 11,500 deer observed in 2022, to about 15,200 deer in 2023. If this increase continues at a constant rate, we would most likely have about 22,600 total deer observed. However we never see constant increase or decrease on this graph, as many factors contribute to deer population, such as natural disasters, disease, genetics, food sources, and more. It is very possible we could have a sudden decrease in deer population-- compared to 2022-- in 2025, for this has happened in 2010-2011 and 2013-2014.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(x = as.character(Year), y = DeerTotal))
+
+p +
+ 
+  geom_col(stat = "summary", fun = mean, fun.args = list(na.rm = TRUE)) + #na.rm is used to prevent data that is not available from tampering with the graph
+  
+  geom_line(stat = "summary", fun = mean, aes(group = 1) , color = "red", linewidth = 1, fun.args = list(na.rm = TRUE))+ #aes(group = 1) specifies one continous line for all years
+  
+  labs(
+    title = "Average Deer Total Per Year",
+    x = "Year",
+    y = "Average Deer Total (per sighting)"
+  )
+```
+<br>
+If we take an average of the total deer seen on each sighting per year, the results show a very similar trend, adding to the legitimacy.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(
+    x = fct_reorder(ParkName, DeerTotal, .fun = sum, .desc = TRUE), 
+    y = DeerTotal,
+    color = ParkName, fill = ParkName
+  )) +
+  geom_col(stat = "summary", fun = sum) +
+  theme(
+  # This removes the text labels for the x-axis, for it took up too much space
+  axis.text.x = element_blank()
+  ) +
+  labs(
+    title = "Overall Deer Sightings Per Park",
+    x = "",
+    y = "Total Deer (summation of all sightings)"
+  )
+
+p
+```
+<br>
+Out of the 3 parks observed, Wilson's Creek National Battlefield has had the most deer sightings. The total number of deer in these parks is important for guest safety (deer-car collisions, disease, and the possibility of deer charging at guests). Plan accordingly if you plan on visiting Wilson's Creek National Battlefield or Pea Ridge National Military Park, for they both have more visible deer in comparison to Arkansas Post National Memorial.
+<br>
+<br>
+<br>
+
+## IMPORTANT NOTE:
+
+
+<br>
+Arkansas Post National Memorial has 1354 observations made, Pea Ridge National Military Park has 2571 observations made, and Wilson's Creek National Battlefield has 2689 observations made. The above analyzation is, most likely, not accurate due the Arkansas Post National Memorial having significantly less observations than the other 2 parks. I'm keeping the graph here, for now, to show my study process.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(
+    x = fct_reorder(ParkName, DeerTotal, .fun = mean, .desc = TRUE), 
+    y = DeerTotal,
+    color = ParkName, fill = ParkName
+  )) +
+  geom_col(stat = "summary", fun = mean) +
+  theme(
+  # This removes the text labels for the x-axis, for it took up too much space
+  axis.text.x = element_blank()
+  ) +
+  labs(
+    title = "Average Deer Total per Sighting for each Park",
+    x = "",
+    y = "Total Deer (per sighting)"
+  )
+
+p
+```
+<br>
+If we take the average total deer per sighting (not the summation), the order is still the same: Wilson's Creek National Battlefield has the most deer sighted, then Pea Ridge National Military Park, then Arkansas Post National Memorial. With the average showing the same results, the statement of Wilson's Creek National Battlefield having the most active deer might be more viable.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+```{r}
+#PREP
+hourly_summary <- monitoring %>% #new dataset variable based on monitoring for this graph only, because we only want to focus on hours
+  mutate(Hour = hour(GPSTimeCombined)) %>% #Create a variable in the dataset that is only for hours in GPSTimeCombined
+  group_by(Hour) %>% #groups each hour together
+  summarise(
+    MeanDeerTotal = mean(DeerTotal, na.rm = TRUE), #average DeerTotal across all years per hour
+    
+    )
+
+#GRAPHING THE AVERAGE DEER TOTAL PER THE HOUR OF THE DAY ACROSS ALL YEARS
+
+ggplot(hourly_summary, aes(x = Hour, y = MeanDeerTotal)) +
+  geom_col(fill = "forestgreen", color = "black") +
+  scale_x_continuous(breaks = seq(0, 23, by = 1)) + #Makes sure the labels are each hour of the day starting at 0
+  labs(
+    title = "Average Deer Total by Hour of Day",
+    x = "Hour of Day (24-Hour Clock)",
+    y = "Average Deer Total Per Sighting"
+  ) 
+```
+<br>
+According to this graph, at 5PM (the 17th hour of the day) deer are very active, with about 80 deer being the average total sighting across all years recorded. 5PM to 11PM, general night hours, seem to have the most deer sightings, which can be very dangerous for night-drivers due to deer-car collisions and limited vision. If you are worried of the danger of deer crossing roads in Arkansas, this graph shows that it is not best to drive at night, if possible.
+
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+```{r}
+
+#PREP
+
+temp_summary <- monitoring_cleaned %>% #takes the cleaned up monitoring data set from earlier that removes -9999 from the temperature columns, and passes it to a new variable: temp_summary
+  mutate(
+    TempBreak = cut(
+      AvgTemperatureInCelsius,
+      breaks = seq(floor(min(AvgTemperatureInCelsius)/5)*5,
+                   ceiling(max(AvgTemperatureInCelsius)/5)*5 + 5, by = 5), #makes a new column called TempBreak that takes AvgTemperatureInCelius, and divides it into ranges of 5
+      include.lowest = TRUE,
+      right = FALSE # allows the rightmost number to be in two intervals/ranges
+    )
+  ) %>%
+  
+  group_by(TempBreak) %>% #groups up relative temperatures ranges
+  
+  summarise(
+    MeanDeerTotal = mean(DeerTotal, na.rm = TRUE), #creates an average deer total based on each grouped temperature
+   
+  ) %>%
+  drop_na(TempBreak) # Remove any potential empty variables
+
+#GRAPHING
+ggplot(temp_summary, aes(x = TempBreak, y = MeanDeerTotal)) +
+  geom_col(fill = "darkred", color = "black") +
+  labs(
+    title = "Average Deer Total by Temperature Range",
+    x = "Temperature Range (Celsius)",
+    y = "Average Deer Total Per Sighting"
+  ) +
+  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+<br>
+From the graph above, the temperatures 0 to 20 degrees celsius (32 to 68 degrees fahrenheit) have, on average, over 50 deer seen (per sighting), which suggests that more deer tend to roam when the temperature is just starting to freeze/ generally cold. 15 to 20 degrees celsius, specifically,  (59 to 68 degrees fahrenheit) has the most deer to be weary of, which suggests that deer prefer cool weather, below room temperature (according to ScienceNotes.org, room temperature is about 20-22 degrees celsius, or 68 to 72 degrees fahrenheit) (Helmenstine, 2023).
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+
+```{r}
+
+#PREP
+
+hum_summary <- monitoring_cleaned %>% #takes the cleaned up monitoring data set from earlier that removes -9999 from the humidity columns, and passes it to a new variable: hum_summary
+  mutate(
+    HumBreak = cut(
+      AvgHumidityInPercent,
+      breaks = seq(floor(min(AvgHumidityInPercent)/5)*5,
+                   ceiling(max(AvgHumidityInPercent)/5)*5 + 5, #makes a new column called HumBreak that takes AvgHumidityInPercent, and divides it into ranges of 5 so there is not to many bars on the graph
+                   by = 5),
+      include.lowest = TRUE,
+      right = FALSE # allows the rightmost number to be in two intervals/ranges
+    )
+  ) %>%
+  
+  group_by(HumBreak) %>% #groups up relative humidity ranges
+  
+  summarise(
+    MeanDeerTotal = mean(DeerTotal, na.rm = TRUE), #creates an average deer total based on each grouped humidity range
+   
+  ) %>%
+  drop_na(HumBreak) # Remove any potential empty variables
+
+#GRAPHING
+ggplot(hum_summary, aes(x = HumBreak, y = MeanDeerTotal)) +
+  geom_col(fill = "darkred", color = "black") +
+  labs(
+    title = "Average Deer Total by Humidity Range",
+    x = "Humidity Range (Percent)",
+    y = "Average Deer Total Per Sighting"
+  ) +
+  
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+<br>
+Average total deer sightings in comparison to humidity percentage does not seem to have a lot of correlation, for each humidity percentage range has a substantial amount of deer sightings (except the incredibly rare 100-105% range). Even so, the 20-25% range of humidity has the greatest average total deer per sighting, at about 75. The second most grossing when it comes to the greatest average of total deer per sighting is the 95-100% range of humidity, with about 68 deer viewed on average per sighting. The great difference in 20-25% and 95-100% further solidifies the lack of correlation between total deer and humidity.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(
+    x = fct_reorder(WeatherCondition, DeerTotal, .fun = sum, .desc = TRUE), #.fun specifies that Weather Condition will be reordered based on the sum of DeerTotal, and .desc = TRUE specifies that the specific order will be descending
+    y = DeerTotal
+  )) +
+  geom_col( stat = "summary", fun = sum, fill = "purple", color = "black") + # finds the sum of deertotal for each Weather Type
+  #stat = "summary" has to be called to access fun = sum
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) + #angles the text on the x-axis so it does not overlap
+  scale_y_continuous(labels = scales::number_format(accuracy = 1))+ #actually shows the numbers on the y-axis instead of abbreviating them
+
+  labs(
+    title = "Total Deer Count Relative to Each Weather Condition",
+    x = "Weather Condition",
+    y = "Deer Total (summation of all sightings)"
+  )
+p
+```
+<br>
+The very large majority of the deer sighted appeared during times of no rain. There could be many other factors that influence the majority of deer being seen during times of no rain other than the weather itself, though. The researchers could have preferred going out in clear weather, and the deer may be harder to sight with precipitation blocking vision.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r}
+ggplot(data = monitoring, mapping = aes(x=fct_reorder(WeatherCondition, DeerTotal,.fun = "mean",.desc = TRUE), y = DeerTotal)) +
+
+  geom_col( stat = "summary", fun = mean, fill = "blue", color = "black") + 
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+  labs(title = "Average Deer Count(per sighting) per Weather Condition", 
+       x= "Weather Condition ('to' indicates condition change)",
+       y = "Average Deer Sightings")
+```
+<br>
+An average count per sighting seems more accurate for the deer total and weather condition comparision. According to the average total deer per sighting (not the summation), a shift from light rain to no rain typically yields the most deer, with mist or fog to light rain being second.
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+```{r}
+p <- ggplot(data = monitoring, mapping = aes(x=MoonIlluminationInPercent, y = DeerTotal))
+p+ geom_point(alpha = .3) +
+  geom_smooth(method="lm")+
+  labs(title = "Deer Total based on Moon Illumination", x = "Moon Illumination (Percent)", y= "Total Deer (per sighting)")
+
+```
+<br>
+Moon illumination percent does not have much, if any, correlation with deer total, due to the heavily scattered points on the graph.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+```{r}
+ggplot(monitoring, aes(x = AvgCloudCover, y = DeerTotal)) +
+  geom_point(alpha = 0.3) +
+  geom_smooth(method = "lm", color = "blue") +
+  labs(title = "Deer Total by Cloud Cover",
+       x = "Average Cloud Cover (percent)",
+       y = "Total Deer (per sighting)")
+```
+<br>
+Like moon illumination, cloud cover does not seem to have much correlation with the total deer spotted. Total deer increases as the average cloud cover increases, according to the line shone. However, the points are very scattered, heavily undermining the accuracy of the line.
+
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+# Conclusion:
+<br>
+<br>
+<br>
+
+
+White-tailed deer take up the large majority of Arkansas deer population, being the state animals, with about 1,000,000 in the state (Kohl, 2022). Their abundance has led to approximately 22,000 deer-car collisions occurring each year in Arkansas (Kohl, 2022).If you are wanting to stay safe and avoid the many deer that appear on the roads in Arkansas, here are the main factors to be weary of. Grassland/Prairie environments tend to have the most deer, according to their **summation** of total deer spotted. Fortunately (for the case of avoiding deer), Arkansas does not consist of many grasslands and prairies, with there only being less than 430 acres (Gwaltney, 2025). Still, grasslands and prairies should be considered for any driving trips, as these areas are at very high risk of deer-car collisions with the abundance of deer. Savannas, according to calculated **average** deer total per sighting, typically have the most deer show out of all the environments in Arkansas. Like the grasslands/prairies, though, savannas are not very prominent in Arkansas, lowering the risk of coming across them, with only <.1% of Arkansas being **known** savanna land, and .4% being **likely** savanna land (Southeast Conservation Adaptation Strategy, 2025). Crop/farmland environments, however, can be very unpredictable when it comes to deer-human contact. Some days, many deer make their presence known in crop environments, while other days, absolutely none will show. The Crop environment also has the second highest average deer total per sighting. With 41% of Arkansas' land being farmland, it is advised to pay attention in these areas while driving, as it is better to be safe-- and prevent hitting a deer while driving-- than sorry after-the-fact (Conte, 2025). 
+<br>
+<br>
+The time you drive in Arkansas is important for deer-car collision prevention as well. White-tailed deer seem to have preference for dark/night hours, with 5PM being their most active time, while still consistently appearing from 6PM-11PM. While hard to practice due to possible job hours, driving during the day, before 5PM, is recommended for deer-car collision prevention.
+<br>
+<br>
+Temperature also plays a role in white-tailed deer appearances. More deer show when temperatures are just above freezing, and just below room temperature, with 32-68 degrees Fahrenheit being the most notable (but quite large and near unavoidable) range. Though, the most amount of dear show in the 59-68 degrees Fahrenheit range, which suggests that deer prefer a cool, but not freezing, environment. It is advised to avoid driving in these temperature ranges to avoid deer, if possible, but might not always be viable due to school and work.
+<br>
+<br>
+While deer appearances and humidity do not seem to have much correlation, there are 2 humidity ranges that have significantly more deer than others. These humidity ranges are at opposite ends of the spectrum, being 20-25% and 95-100% humidity. If you are anxious over the possibility of deer on your driving route, humidity can be checked, but humidity does not seem to be the most reliable source for deer total prediction.
+<br>
+<br>
+White-tailed deer in Arkansas seem appear more when there is a shift from light rain to no rain, according to the second graph on precipitation, which rids the possible factor of humans mostly recording on days with no rain due to convenience. The second most deer-yielding precipitation factor is the shift from mist (fog) to light rain.
+<br>
+As the Arkansas white-tailed deer population has started to increase in 2023, the latest year of data supplied by the National Park Service and Department of the Interior, deer-car collision risks rise as well. In the worry of human safety, hunting opportunities should rise with the increase to keep a "middle-ground" in the deer population.
+<br>
+<br>
+<br>
+
+## Factors to Avoid in Worry of Deer-Car Collisions:
+<br>
+<br>
+* Grasslands/Prairies, Savannas, and Crop/Farmland Environments
+<br>
+* 5PM-11PM (most notably 5PM)
+<br>
+* 59 - 68 degrees Fahrenheit
+<br>
+* Shift from light rain to no rain
+<br>
+* Shift from mist (fog) to light rain
+<br>
+* 20-25% humidity and 95-100% humidity
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+<br>
+
+# References
+<br>
+<br>
+<br>
+https://www.mybib.com/b/ROa5po
+<br>
+<br>
+<br>
+
+---
+nocite: '@*'
+...
+
